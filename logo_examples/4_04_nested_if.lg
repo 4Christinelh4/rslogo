@@ -1,0 +1,9 @@
+// Nested IF
+PENDOWN
+IF GT "5 "3 [
+   IF LT "2 "4 [
+       FORWARD "5
+    ]
+]
+
+
