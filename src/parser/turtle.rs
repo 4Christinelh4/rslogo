@@ -46,6 +46,7 @@ impl<'a> Turtle<'a> {
     }
 
     pub fn search_end(&self, start: usize) -> Option<usize> {
+        println!("value = {}", start);
         for (key, value) in &self.cond_map {
             if *value == start {
                 return Some(*key);
@@ -161,6 +162,20 @@ impl<'a> Turtle<'a> {
         &self.var_map
     }
 
+    // for add assign only, it only allows f32
+    pub fn search_assign(&self, key_name: &str) -> Option<f32> {
+        match &self.var_map.get(&key_name) {
+            None => None,
+            Some(val) => {
+                if !val.is_f32 {
+                    return None;
+                }
+
+                Some(val.f32_value)
+            }
+        }
+    }
+
     pub fn search_varmap(&self, in_str: &str) -> Option<(f32, String, bool)> {
         let var_map: &HashMap<&str, VarMapValue> = &self.var_map;
         match in_str.chars().nth(0) {
@@ -168,6 +183,7 @@ impl<'a> Turtle<'a> {
                 // get from var_map
                 match var_map.get(&in_str[1..]) {
                     Some(val) => {
+                        println!("171: val = {:?}", val);
                         if val.is_f32 {
                             Some((val.f32_value, String::from(""), true))
                         } else {

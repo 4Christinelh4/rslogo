@@ -1,5 +1,3 @@
-use std::error::Error;
-
 pub const IS_PENDOWN: &str = "PENDOWN";
 pub const IS_PENUP: &str = "PENUP";
 

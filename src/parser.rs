@@ -21,7 +21,7 @@ pub fn turtle_move<'a, 'b: 'a>(
     while i < finish_execute {
         // println!("{}", commands[i]);
         let line_ref = commands[i].as_str().trim_start();
-        if line_ref.len() == 0 || helper::is_comment(line_ref) {
+        if line_ref.is_empty() || helper::is_comment(line_ref) {
             i += 1;
             continue;
         }
@@ -43,7 +43,7 @@ pub fn turtle_move<'a, 'b: 'a>(
 
             // setpencolor [start of expression] + only 1 value
             constant::IS_SETPENCOLOR | constant::IS_TURN | constant::IS_SETHEADING => {
-                if splitted.len() > 2 && !compute::is_arithmetic_operator(&splitted[1])
+                if splitted.len() > 2 && !compute::is_arithmetic_operator(splitted[1])
                     || splitted.len() == 1
                 {
                     std::process::exit(1);
@@ -102,7 +102,7 @@ pub fn turtle_move<'a, 'b: 'a>(
                 }
 
                 let val: f32;
-                match helper::parse_value(&turtle, &splitted, 1) {
+                match helper::parse_value(turtle, &splitted, 1) {
                     Some(v) => {
                         if v.3 {
                             val = v.0;
@@ -114,7 +114,6 @@ pub fn turtle_move<'a, 'b: 'a>(
                 };
 
                 if constant::IS_SETX == splitted[0] {
-                    println!("set x: {}", val);
                     turtle.set_x(val);
                 } else if constant::IS_SETY == splitted[0] {
                     turtle.set_y(val);
@@ -123,32 +122,37 @@ pub fn turtle_move<'a, 'b: 'a>(
                 }
             }
 
-            constant::IS_MAKE => {
-                if (splitted.len() > 3 && !compute::is_arithmetic_operator(&splitted[2]))
-                    || splitted.len() < 3
-                {
-                    std::process::exit(1);
-                }
-
-                helper::make_cmd(turtle, &splitted);
-            }
+            constant::IS_MAKE => match helper::make_cmd(turtle, &splitted) {
+                None => std::process::exit(1),
+                Some(_) => {}
+            },
 
             // only allows f32!!!
-            constant::IS_ADDASSIGN => {}
+            constant::IS_ADDASSIGN => match helper::add_assign(turtle, &splitted) {
+                None => std::process::exit(1),
+                Some(_) => {}
+            },
 
             constant::IS_WHILE | constant::IS_IF => {
-                match helper::add_controlflow(i, commands, turtle) {
-                    None => std::process::exit(1),
+                println!("i = {}", i);
+
+                match turtle.search_end(i) {
+                    None => match helper::add_controlflow(i, commands, turtle) {
+                        None => std::process::exit(1),
+                        Some(_) => {}
+                    },
                     Some(_) => {}
-                }
+                };
+
+                println!("i = {} turtle_search end = {:?}", i, turtle.search_end(i));
 
                 match helper::check_condition(i, &splitted, &turtle) {
                     Some(res) => {
                         if res {
-                            println!("res = true");
                             i += 1;
                             continue;
                         } else {
+                            println!("i = {}, to false", i);
                             let end_condition = turtle.search_end(i).unwrap();
                             i = end_condition + 1;
                             continue;
@@ -162,23 +166,25 @@ pub fn turtle_move<'a, 'b: 'a>(
             constant::IS_CLOSE => {
                 // get the start_line from the index, if it's while : check the condition again
                 let idx = turtle.get_start_line(i).unwrap();
-                println!("idx of start = {}", idx);
-                let cond_line = &commands[*idx];
-                match &cond_line[..2] {
-                    "IF" => {
-                        i += 1;
-                        continue;
-                    }
-                    _ => {}
+                println!("idx of start = {}", idx); // 6
+                let cond_line = &commands[*idx].as_str().trim_start();
+                println!("cond_line = {}", cond_line);
+                if &cond_line[..2] == "IF" {
+                    i += 1;
+                    continue;
                 }
 
-                let cond_line_to_vec: Vec<&str> =
-                    cond_line.as_str().trim_start().split(' ').collect();
+                let cond_line_to_vec: Vec<&str> = cond_line.split(' ').collect();
 
                 // check the condition again
-                if helper::check_condition(i, &cond_line_to_vec, &turtle).is_some() {
-                    i = 1 + idx;
-                    continue;
+                match helper::check_condition(*idx, &cond_line_to_vec, &turtle) {
+                    Some(result) => {
+                        if result {
+                            i = 1 + idx;
+                            continue;
+                        }
+                    }
+                    None => std::process::exit(1),
                 }
                 // condition wrong: go to the end of match
             }
