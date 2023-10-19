@@ -1,8 +1,8 @@
 use clap::Parser;
-use unsvg::Image;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
+use unsvg::Image;
 mod parser;
 
 /// A simple program to parse four arguments using clap.
@@ -21,6 +21,7 @@ struct Args {
     width: u32,
 }
 
+#[allow(unused)]
 fn parse_file(filepath: &std::path::PathBuf) -> Vec<String> {
     let mut logo_file = match File::open(&filepath) {
         Ok(f) => f,
@@ -31,7 +32,7 @@ fn parse_file(filepath: &std::path::PathBuf) -> Vec<String> {
     match logo_file.read_to_string(&mut s) {
         Ok(_) => {
             return s.lines().map(|x| String::from(x)).collect();
-        },
+        }
         Err(_) => {
             std::process::exit(1);
         }
@@ -52,13 +53,21 @@ fn main() -> Result<(), ()> {
 
     let function_var_map: HashMap<&str, f32> = HashMap::new();
 
-    let mut turtle_6991 = parser::turtle::Turtle::new((width/2) as f32, (height/2) as f32, 7, 0);
-    let finish_draw = parser::turtle_move(&file_to_vec, &mut turtle_6991, &mut image, 0, file_to_vec.len(), &function_var_map);
-    
+    let mut turtle_6991 =
+        parser::turtle::Turtle::new((width / 2) as f32, (height / 2) as f32, 7, 0);
+    let finish_draw = parser::turtle_move(
+        &file_to_vec,
+        &mut turtle_6991,
+        &mut image,
+        0,
+        file_to_vec.len(),
+        &function_var_map,
+    );
+
     match finish_draw {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(_) => return Err(()),
-    }; 
+    };
 
     match image_path.extension().map(|s| s.to_str()).flatten() {
         Some("svg") => {

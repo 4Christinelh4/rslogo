@@ -1,3 +1,5 @@
+use std::error::Error;
+
 pub const IS_PENDOWN: &str = "PENDOWN";
 pub const IS_PENUP: &str = "PENUP";
 
@@ -34,7 +36,20 @@ pub struct VarMapValue {
 #[derive(Debug, Clone)]
 pub struct Func {
     pub num_args: i32,
-    pub start: usize,
+    pub start: usize, // the line where the function starts in logo file
     pub end: usize,
-    pub argv: String,
+    pub argv: String, // 'arg1 'arg2 ..String
+}
+
+#[derive(Debug, Clone)]
+pub struct Condition {
+    pub assigned_true: bool,
+    pub cond_start: usize, // EQ/GT/LT/NE
+}
+
+pub fn get_number_float(in_str: &str) -> Result<f32, std::num::ParseFloatError> {
+    match &in_str.parse::<f32>() {
+        Ok(num) => Ok(*num),
+        Err(parse_error) => Err(parse_error.clone()),
+    }
 }

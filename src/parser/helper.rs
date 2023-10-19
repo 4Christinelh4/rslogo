@@ -1,5 +1,8 @@
 use crate::parser::compute::*;
+use crate::parser::constant::*;
 use crate::parser::turtle::*;
+
+use std::collections::VecDeque;
 
 pub fn is_comment(line: &str) -> bool {
     return line.len() >= 2 && line.chars().nth(0) == Some('/') && line.chars().nth(1) == Some('/');
@@ -19,27 +22,27 @@ pub fn parse_value(
     params: &[&str],
     start_idx: usize,
 ) -> Option<(f32, String, usize, bool)> {
-    if params.len() > 1 && !is_arithmetic_operator(&params[start_idx]) {
-        return None;
+    if params.len() == 1 {
+        return None; // nothing to parse, the first one is the command
     }
 
-    if is_arithmetic_operator(&params[0]) {
+    if is_arithmetic_operator(&params[start_idx]) {
         // Option<(f32, usize)>
-        match calculate_bystack(turtle.get_varmap(), params, start_idx) {
+        match calculate_bystack(turtle, params, start_idx) {
             Some(ret) => {
                 println!("**** ret = {:?} ****", ret);
                 Some((ret.0, String::from(""), ret.1, true))
             }
             None => None,
         }
-
-        // (ret.0, "", ret.1, true)
     } else {
         // Option<(f32, String, bool)>
-        match parse_or_search_map(turtle.get_varmap(), &params[0]) {
+        println!("***parse or search map***");
+        match parse_or_search_map(turtle, &params[start_idx]) {
             Some(result) => {
                 if result.2 {
                     // f32
+
                     Some((result.0, String::from(""), 1 + start_idx, result.2)) // if is_str -> None
                 } else {
                     Some((0.0, result.1, 1 + start_idx, result.2))
@@ -54,16 +57,21 @@ pub fn parse_value(
 // MAKE "X XCOR
 // MAKE "Y YCOR
 pub fn make_cmd<'a, 'b: 'a>(turtle: &'a mut Turtle<'b>, params: &[&'b str]) -> Option<bool> {
-    let k: &str = &params[0][1..];
+    let k: &str = &params[1][1..];
 
     // params [1] -> variable
     // insert_varmap(k: &str, is_f32: bool, f32_val: f32, str_value: String)
-    match params[1] {
+    match params[2] {
         "XCOR" | "YCOR" | "COLOR" | "HEADING" => {
-            turtle.insert_varmap(k, true, turtle.make_query(&params[1]), String::from(""));
+            turtle.insert_varmap(
+                k,
+                true,
+                turtle.make_query(&params[1]).unwrap(),
+                String::from(""),
+            );
         }
         _ => {
-            match parse_value(&turtle, &params, 1) {
+            match parse_value(&turtle, &params, 2) {
                 Some(res) => {
                     //  what to insert!!!
                     if res.3 {
@@ -83,72 +91,170 @@ pub fn make_cmd<'a, 'b: 'a>(turtle: &'a mut Turtle<'b>, params: &[&'b str]) -> O
     Some(true)
 }
 
-// // check if it's valid (closed) at the beginning
-// pub fn add_controlflow_to_map(idx: i32, commands: & Vec<String>
-//     , end_start_map: &mut HashMap<i32, i32>
-//     , cond_map_valid: &mut HashMap<i32, Condition> ) {
+// ADDASSIGN "DIST "5
+pub fn add_assign<'a, 'b: 'a>(turtle: &'a mut Turtle<'b>, params: &[&'b str]) {
+    // make sure it's in turtle's var map and it's f32!!!!
+    // match turtle.
+}
 
-//     let mut stack: VecDeque<i32> = VecDeque::new();
-//     let cmd_len: i32 =  commands.len() as i32;
+// check if it's valid (closed) at the beginning (has ])
+pub fn add_controlflow(idx: usize, commands: &Vec<String>, turtle: &mut Turtle) -> Option<()> {
+    let mut stack: VecDeque<usize> = VecDeque::new();
+    let cmd_len = commands.len();
 
-//     for k in idx..cmd_len {
-//         let line_ref = commands[k as usize].as_str();
-//         if line_ref.len() == 0 || is_comment(line_ref) {
-//             continue;
-//         }
+    for k in idx..cmd_len {
+        let splitted: Vec<&str> = commands[k].as_str().split(' ').collect();
 
-//         let splitted: Vec<&str> = line_ref.split(' ').collect();
+        match splitted[0] {
+            IS_WHILE | IS_IF => {
+                stack.push_back(k);
+            }
 
-//         match splitted[0] {
-//             IS_WHILE | IS_IF => {
-//                 stack.push_back(k);
-//             },
+            IS_CLOSE => {
+                let stack_back = stack.pop_back();
+                match stack_back {
+                    // put the cond into condition map
+                    // IF EQ XCOR "10
+                    // WHILE AND GT XCOR "0 GT YCOR "0  -> cmd_condition
+                    Some(start_idx) => {
+                        // get the line of cond
+                        let cond_line: Vec<&str> =
+                            commands[start_idx].as_str().split(' ').collect();
 
-//             IS_CLOSE => {
-//                 // println!("IS_CLOSE {}", k);
-//                 if stack.len() == 0 {
-//                     // error
-//                     std::process::exit(1);
-//                 }
+                        let mut cond_1: Condition = Condition {
+                            assigned_true: false,
+                            cond_start: 2, // the way to evaluate lhs, rhs
+                        };
 
-//                 let start_idx = stack.pop_back();
-//                 // let start_idx_: i32 = 0;
+                        let mut cond_2: Condition = Condition {
+                            assigned_true: false,
+                            cond_start: 2,
+                        };
 
-//                 // println!("{:?}", start_idx);
+                        match cond_line[1] {
+                            "AND" | "OR" => {
+                                let end_cond_1 = parse_end_arg(cond_line);
+                                match end_cond_1 {
+                                    Some(end_index) => cond_2.cond_start = end_index,
+                                    None => return None,
+                                }
+                            }
 
-//                 match start_idx {
-//                     // put the cond into condition map
-//                     // EQ XCOR "10
-//                     Some(start_idx_) => {
+                            // one condition!!!
+                            "EQ" | "NE" | "GT" | "LT" => {
+                                cond_1.cond_start = 1;
+                                cond_2.assigned_true = true;
+                            }
 
-//                         // cmd_condition needs to be check calculate_by_stack
-//                         // IF EQ * "6 "2 "12
-//                         // WHILE AND GT XCOR "0 GT YCOR "0  -> cmd_condition
-//                         let cmd_condition: Vec<&str>  = commands[start_idx_ as usize].as_str().split(' ').collect();
+                            _ => return None,
+                        };
 
-//                         cond_map_valid.insert(start_idx_, Condition{
-//                             operator_name: String::from(cmd_condition[0]),
-//                             cond_name: String::from(cmd_condition[1]),
-//                             lhs: String::from(cmd_condition[2]),
-//                             rhs: String::from(cmd_condition[3]),
-//                         } );
+                        println!("cond1 = {:?}, cond2 = {:?}", cond_1, cond_2);
+                        turtle.add_2conditions(start_idx, cond_1, cond_2);
+                        turtle.insert_condmap(k, start_idx);
+                    }
+                    None => return None, // empty stack!!!
+                }
 
-//                         // println!("{}, {}", k, start_idx_);
-//                         end_start_map.insert(k, start_idx_);
-//                     },
+                if stack.len() == 0 {
+                    // error
+                    Some(());
+                }
+            }
 
-//                     None => std::process::exit(1)
-//                 }
+            _ => continue,
+        }
+    }
 
-//             },
+    if stack.len() > 0 {
+        return None;
+    }
 
-//             _ =>  { continue; }
-//         }
-//     }
+    Some(())
+}
 
-//     if stack.len() > 0 {
-//         // error -> no close -> process exit(1)
-//         println!("Error: stack len > 0!");
-//         std::process::exit(1);
-//     }
-// }
+pub fn evaluate_cond(turtle: &Turtle, cond: &Condition, params: &Vec<&str>) -> Option<bool> {
+    if cond.assigned_true {
+        return Some(true);
+    }
+
+    let lhs = parse_value(&turtle, &params, 1 + cond.cond_start);
+    let mut rhs_start: usize;
+    let mut correct_lhs: (f32, String, usize, bool);
+    let mut correct_rhs: (f32, String, usize, bool);
+
+    if lhs.is_some() {
+        correct_lhs = lhs.unwrap();
+        rhs_start = correct_lhs.2;
+    } else {
+        return None;
+    }
+
+    println!("*******correct_lhs = {:?}", correct_lhs);
+    let rhs = parse_value(&turtle, &params, rhs_start);
+    if rhs.is_some() {
+        correct_rhs = rhs.unwrap();
+    } else {
+        return None;
+    }
+
+    println!("*******correct_rhs = {:?}", correct_rhs);
+
+    match params[cond.cond_start] {
+        "EQ" => {
+            if correct_lhs.3 && correct_rhs.3 {
+                return Some(correct_lhs.0 == correct_rhs.0);
+            }
+            if !correct_lhs.3 && !correct_rhs.3 {
+                return Some(correct_lhs.1 == correct_rhs.1);
+            }
+            return Some(false);
+        }
+        "GT" => return Some(correct_lhs.3 && correct_rhs.3 && correct_lhs.0 > correct_rhs.0),
+        "LT" => return Some(correct_lhs.3 && correct_rhs.3 && correct_lhs.0 < correct_rhs.0),
+        "NE" => {
+            if correct_lhs.3 && correct_rhs.3 {
+                return Some(correct_lhs.0 != correct_rhs.0);
+            }
+
+            if !correct_lhs.3 && !correct_rhs.3 {
+                return Some(correct_lhs.1 != correct_rhs.1);
+            }
+
+            return Some(true); // invalid compare
+        }
+        _ => return None,
+    }
+}
+
+pub fn check_condition(line_idx: usize, params: &Vec<&str>, turtle: &Turtle) -> Option<bool> {
+    match turtle.get_conds(line_idx) {
+        Some(conds) => {
+            let first_cond: &Condition = &conds.0;
+            let second_cond: &Condition = &conds.1; // need to find the start of secod cond before
+
+            let connect: &str = params[1];
+            let cond1_bool: bool;
+            let cond2_bool: bool;
+
+            match evaluate_cond(&turtle, &first_cond, &params) {
+                None => return None,
+                Some(res) => cond1_bool = res,
+            }
+
+            match evaluate_cond(&turtle, &second_cond, &params) {
+                None => return None,
+                Some(res) => cond2_bool = res,
+            }
+
+            match connect {
+                "AND" => return Some(cond1_bool && cond2_bool),
+                "OR" => return Some(cond1_bool || cond2_bool),
+                "GT" | "LT" | "NE" | "EQ" => return Some(cond1_bool),
+                _ => None,
+            }
+        }
+
+        None => None,
+    }
+}

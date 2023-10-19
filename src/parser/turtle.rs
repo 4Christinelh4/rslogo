@@ -10,6 +10,9 @@ pub struct Turtle<'b> {
     pen_down: bool,
     var_map: HashMap<&'b str, VarMapValue>,
     func_map: HashMap<&'b str, Func>,
+    // key: the line where the cond ends, value: the line where the cond starts
+    cond_map: HashMap<usize, usize>,
+    conditions: HashMap<usize, (Condition, Condition)>,
 }
 
 // Implement methods for the class
@@ -24,7 +27,35 @@ impl<'a> Turtle<'a> {
             pen_down: false,
             var_map: HashMap::new(),
             func_map: HashMap::new(),
+            cond_map: HashMap::new(),
+            conditions: HashMap::new(),
         }
+    }
+
+    pub fn insert_condmap(&mut self, k: usize, v: usize) {
+        self.cond_map.insert(k, v);
+    }
+
+    // TODO: change to Box???
+    pub fn add_2conditions(&mut self, start_idx: usize, cond_1: Condition, cond_2: Condition) {
+        self.conditions.insert(start_idx, (cond_1, cond_2));
+    }
+
+    pub fn get_conds(&self, line_idx: usize) -> Option<&(Condition, Condition)> {
+        self.conditions.get(&line_idx)
+    }
+
+    pub fn search_end(&self, start: usize) -> Option<usize> {
+        for (key, value) in &self.cond_map {
+            if *value == start {
+                return Some(*key);
+            }
+        }
+        None
+    }
+
+    pub fn get_start_line(&self, close_line: usize) -> Option<&usize> {
+        return self.cond_map.get(&close_line);
     }
 
     pub fn set_pendown(&mut self) {
@@ -72,7 +103,12 @@ impl<'a> Turtle<'a> {
     }
 
     pub fn check_function(&self, name: &'a str) -> Option<&Func> {
-        return self.func_map.get(&name);
+        self.func_map.get(&name)
+    }
+
+    // return false if the "end" is not in Funcmap
+    pub fn has_end(&self, line_idx: usize) -> bool {
+        false
     }
 
     pub fn insert_varmap<'b: 'a>(
@@ -92,13 +128,32 @@ impl<'a> Turtle<'a> {
         );
     }
 
-    pub fn make_query(&self, q: &str) -> f32 {
+    pub fn insert_funcmap<'b: 'a>(
+        &mut self,
+        f_name: &'b str,
+        start_line: usize,
+        end_line: usize,
+        num_args: i32,
+        argv_list: String,
+    ) {
+        let new_func: Func = Func {
+            num_args: num_args,
+            start: start_line,
+            end: end_line,
+            argv: argv_list,
+        };
+
+        println!("new function is inserted{:?}", new_func);
+        self.func_map.insert(f_name, new_func);
+    }
+
+    pub fn make_query(&self, q: &str) -> Option<f32> {
         match q {
-            "XCOR" => self.get_x(),
-            "YCOR" => self.get_y(),
-            "COLOR" => self.get_color() as f32,
-            "HEADING" => self.get_direction() as f32,
-            _ => 0.0,
+            "XCOR" => Some(self.get_x()),
+            "YCOR" => Some(self.get_y()),
+            "COLOR" => Some(self.get_color() as f32),
+            "HEADING" => Some(self.get_direction() as f32),
+            _ => None,
         }
     }
 
@@ -106,32 +161,66 @@ impl<'a> Turtle<'a> {
         &self.var_map
     }
 
-    pub fn moving(&mut self, len: f32, command_dir: &str, img: &mut unsvg::Image) -> 
-        Option<(f32, f32)> { 
-        
+    pub fn search_varmap(&self, in_str: &str) -> Option<(f32, String, bool)> {
+        let var_map: &HashMap<&str, VarMapValue> = &self.var_map;
+        match in_str.chars().nth(0) {
+            Some(':') => {
+                // get from var_map
+                match var_map.get(&in_str[1..]) {
+                    Some(val) => {
+                        if val.is_f32 {
+                            Some((val.f32_value, String::from(""), true))
+                        } else {
+                            Some((0.0, val.str_value.clone(), false))
+                        }
+                    }
+                    None => None,
+                }
+            }
+
+            Some('"') => match get_number_float(&in_str[1..]) {
+                Ok(val) => Some((val, String::from(""), true)),
+                Err(_) => Some((0.0, (&in_str[1..]).to_string(), false)),
+            },
+            _ => None,
+        }
+    }
+
+    pub fn moving(
+        &mut self,
+        len: f32,
+        command_dir: &str,
+        img: &mut unsvg::Image,
+    ) -> Option<(f32, f32)> {
         let mut dir_map: HashMap<&str, i32> = HashMap::new();
 
         // reset all values
         dir_map.insert(IS_FORWARD, self.heading); // -180
-        dir_map.insert(IS_BACK, 180 + self.heading);  // 180
+        dir_map.insert(IS_BACK, 180 + self.heading); // 180
         dir_map.insert(IS_RIGHT, 90 + self.heading);
         dir_map.insert(IS_LEFT, 270 + self.heading);
-        
+
         //  -180 + is back = 540 = 180
         let direction_degree = dir_map.get(command_dir).expect("there must be the key");
 
         if self.pen_down {
-            match img.draw_simple_line(self.get_x(), self.get_y(), *direction_degree, len, unsvg::COLORS[self.get_color() as usize]) {
+            match img.draw_simple_line(
+                self.get_x(),
+                self.get_y(),
+                *direction_degree,
+                len,
+                unsvg::COLORS[self.get_color() as usize],
+            ) {
                 Ok(end_point) => {
                     self.set_x(end_point.0);
                     self.set_y(end_point.1);
-                },
+                }
 
                 Err(_) => return None,
             }
-
         } else {
-            let end_point = unsvg::get_end_coordinates(self.get_x(), self.get_y(), *direction_degree, len);
+            let end_point =
+                unsvg::get_end_coordinates(self.get_x(), self.get_y(), *direction_degree, len);
             self.set_x(end_point.0);
             self.set_y(end_point.1);
         }
