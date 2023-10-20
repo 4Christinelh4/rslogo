@@ -51,3 +51,31 @@ pub fn get_number_float(in_str: &str) -> Result<f32, std::num::ParseFloatError> 
         Err(parse_error) => Err(parse_error.clone()),
     }
 }
+
+pub fn is_comment(line: &str) -> bool {
+    return line.len() >= 2 && line.chars().nth(0) == Some('/') && line.chars().nth(1) == Some('/');
+}
+
+pub fn is_i32(input: f32) -> bool {
+    match input {
+        x if x as i32 as f32 == x => true, // Check if it's an i32 or a float with no fractional part
+        _ => false,
+    }
+}
+
+pub fn calculate_on_operator(prev_val: &f32, op_name: &str, another_val: &f32) -> Option<f32> {
+    match op_name {
+        "+" => Some(prev_val + another_val),
+        "-" => Some(prev_val - another_val),
+        "*" => Some(prev_val * another_val),
+        "/" => Some(prev_val / another_val),
+        _ => None,
+    }
+}
+
+pub fn is_arithmetic_operator(argu: &str) -> bool {
+    match argu {
+        "+" | "-" | "*" | "/" => true,
+        _ => false,
+    }
+}

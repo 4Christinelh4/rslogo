@@ -4,17 +4,6 @@ use crate::parser::turtle::*;
 
 use std::collections::VecDeque;
 
-pub fn is_comment(line: &str) -> bool {
-    return line.len() >= 2 && line.chars().nth(0) == Some('/') && line.chars().nth(1) == Some('/');
-}
-
-pub fn is_i32(input: f32) -> bool {
-    match input {
-        x if x as i32 as f32 == x => true, // Check if it's an i32 or a float with no fractional part
-        _ => false,
-    }
-}
-
 // parse_value for setX, setY, FORWARD..., setcolore, set_heading, trun must have f32!!!!
 // bool = true: f32, bool = false: str
 pub fn parse_value(
@@ -29,16 +18,13 @@ pub fn parse_value(
     if is_arithmetic_operator(&params[start_idx]) {
         // Option<(f32, usize)>
         match calculate_bystack(turtle, params, start_idx) {
-            Some(ret) => {
-                Some((ret.0, String::from(""), ret.1, true))
-            }
+            Some(ret) => Some((ret.0, String::from(""), ret.1, true)),
             None => None,
         }
     } else {
         // Option<(f32, String, bool)>
-        match parse_or_search_map(turtle, &params[start_idx]) {
+        match turtle.parse_or_search_map(&params[start_idx]) {
             Some(result) => {
-                println!("result = {:?}", result);
                 if result.2 {
                     // f32
                     Some((result.0, String::from(""), 1 + start_idx, result.2)) // if is_str -> None
@@ -75,7 +61,7 @@ pub fn make_cmd<'a, 'b: 'a>(turtle: &'a mut Turtle<'b>, params: &[&'b str]) -> O
         _ => {
             match parse_value(&turtle, &params, 2) {
                 Some(res) => {
-                    //  what to insert!!!
+                    // println!("{}, {}: insert [{}, {:?}]", file!(), line!(), k, res);
                     if res.3 {
                         // f32
                         turtle.insert_varmap(k, true, res.0, String::from(""));
@@ -103,12 +89,10 @@ pub fn add_assign<'a, 'b: 'a>(turtle: &'a mut Turtle<'b>, params: &[&'b str]) ->
 
     match turtle.search_assign(&params[1][1..]) {
         Some(float_result) => {
-            println!("113: prev result {:?}", float_result);
             match parse_value(&turtle, &params, 2) {
                 Some(res) => {
                     if res.3 {
                         // f32
-                        println!("sum = {}", float_result + res.0);
                         turtle.insert_varmap(
                             &params[1][1..],
                             true,
@@ -190,10 +174,10 @@ pub fn add_controlflow(idx: usize, commands: &Vec<String>, turtle: &mut Turtle) 
                             _ => return None,
                         };
 
-                        println!(
-                            "cond1 = {:?}, cond2 = {:?}, end = {}, start = {}",
-                            cond_1, cond_2, k, start_idx
-                        );
+                        // println!(
+                        //     "cond1 = {:?}, cond2 = {:?}, end = {}, start = {}",
+                        //     cond_1, cond_2, k, start_idx
+                        // );
                         turtle.add_2conditions(start_idx, cond_1, cond_2);
                         turtle.insert_condmap(k, start_idx);
                     }
@@ -234,7 +218,6 @@ pub fn evaluate_cond(turtle: &Turtle, cond: &Condition, params: &Vec<&str>) -> O
         return None;
     }
 
-    println!("*******correct_lhs = {:?}", correct_lhs);
     let rhs = parse_value(&turtle, &params, rhs_start);
     if rhs.is_some() {
         correct_rhs = rhs.unwrap();
@@ -242,18 +225,12 @@ pub fn evaluate_cond(turtle: &Turtle, cond: &Condition, params: &Vec<&str>) -> O
         return None;
     }
 
-    println!("*******correct_rhs = {:?}", correct_rhs);
-
-    // let mut input = String::new();
-    // io::stdin().read_line(&mut input)
-    //     .expect("Failed to read line");
     match params[cond.cond_start] {
         "EQ" => {
             if correct_lhs.3 && correct_rhs.3 {
                 return Some(correct_lhs.0 == correct_rhs.0);
             }
             if !correct_lhs.3 && !correct_rhs.3 {
-                println!("both are strings: {:?}, {:?}", correct_lhs, correct_rhs);
                 return Some(correct_lhs.1 == correct_rhs.1);
             }
             return Some(false);
@@ -299,7 +276,6 @@ pub fn check_condition(line_idx: usize, params: &Vec<&str>, turtle: &Turtle) -> 
                 "AND" => return Some(cond1_bool && cond2_bool),
                 "OR" => return Some(cond1_bool || cond2_bool),
                 "GT" | "LT" | "NE" | "EQ" => {
-                    println!("cond1_bool = {} ", cond1_bool);
                     return Some(cond1_bool);
                 }
                 _ => None,

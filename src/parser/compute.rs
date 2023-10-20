@@ -4,34 +4,7 @@ use std::collections::VecDeque;
 use crate::parser::constant::*;
 use crate::parser::turtle::*;
 
-pub fn is_arithmetic_operator(argu: &str) -> bool {
-    match argu {
-        "+" | "-" | "*" | "/" => true,
-        _ => false,
-    }
-}
-
-fn calculate_on_operator(prev_val: &f32, op_name: &str, another_val: &f32) -> Option<f32> {
-    match op_name {
-        "+" => Some(prev_val + another_val),
-        "-" => Some(prev_val - another_val),
-        "*" => Some(prev_val * another_val),
-        "/" => Some(prev_val / another_val),
-        _ => None,
-    }
-}
-
-// bool = true if it's f32, = false if it's str
-pub fn parse_or_search_map(turtle: &Turtle, in_str: &str) -> Option<(f32, String, bool)> {
-    match turtle.make_query(in_str) {
-        Some(value_f32) => return Some((value_f32, String::from(""), true)),
-        None => {}
-    };
-
-    turtle.search_varmap(&in_str)
-}
-
-// (f32: result of current calculation, usize: start of next operator, aka end of current arithmatic + 1)
+// (f32: result of current calculation, usize: start of next operator, also the last of current arithmatic + 1)
 pub fn calculate_bystack(
     turtle: &Turtle,
     cmd_line: &[&str],
@@ -53,7 +26,7 @@ pub fn calculate_bystack(
 
         // if it's number or variable
         if !flag {
-            match parse_or_search_map(&turtle, &cmd_line[k]) {
+            match turtle.parse_or_search_map(&cmd_line[k]) {
                 None => return None,
                 Some(pair) => {
                     let (v, _, _is_f32) = pair;
@@ -66,7 +39,7 @@ pub fn calculate_bystack(
             match idx_ {
                 None => std::process::exit(1),
                 Some(op_idx) => {
-                    match parse_or_search_map(&turtle, &cmd_line[k]) {
+                    match turtle.parse_or_search_map(&cmd_line[k]) {
                         None => {
                             return None;
                         }

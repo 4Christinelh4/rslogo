@@ -1,5 +1,4 @@
 use clap::Parser;
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use unsvg::Image;
@@ -51,8 +50,6 @@ fn main() -> Result<(), ()> {
     let mut image = Image::new(width, height);
     let file_to_vec = parse_file(&file_path);
 
-    let function_var_map: HashMap<&str, f32> = HashMap::new();
-
     let mut turtle_6991 =
         parser::turtle::Turtle::new((width / 2) as f32, (height / 2) as f32, 7, 0);
     let finish_draw = parser::turtle_move(
@@ -61,7 +58,6 @@ fn main() -> Result<(), ()> {
         &mut image,
         0,
         file_to_vec.len(),
-        &function_var_map,
     );
 
     match finish_draw {

@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::error::Error;
 
 mod compute;
@@ -13,15 +12,14 @@ pub fn turtle_move<'a, 'b: 'a>(
     img: &mut unsvg::Image,
     start_execute: usize,
     finish_execute: usize,
-    function_var_map: &HashMap<&str, f32>,
-) -> Result<(f32, f32), Box<dyn Error>> {
+) -> Result<(f32, f32, i32, i32), Box<dyn Error>> {
     // dir = 0: up
     // 360 - dir
     let mut i = start_execute;
     while i < finish_execute {
         // println!("{}", commands[i]);
         let line_ref = commands[i].as_str().trim_start();
-        if line_ref.is_empty() || helper::is_comment(line_ref) {
+        if line_ref.is_empty() || constant::is_comment(line_ref) {
             i += 1;
             continue;
         }
@@ -31,19 +29,20 @@ pub fn turtle_move<'a, 'b: 'a>(
         match splitted[0] {
             constant::DEFINE_PROCEDURE => {
                 // need to loop through all commands to find the end to make sure the procedure has the end
-                // match function::define_procedure(&mut turtle, commands, i) {
-                //     Ok(last_line) => {
-                //         // move i to 1 + last_line
-                //         i = 1 + last_line;
-                //         continue;
-                //     }
-                //     Err(_) => std::process::exit(1),
-                // }
+                match function::define_procedure(turtle, commands, i) {
+                    Ok(last_line) => {
+                        // move i to 1 + last_line
+                        i = 1 + last_line;
+                        // println!("define procedure, last_line = {}", last_line);
+                        continue;
+                    }
+                    Err(_) => std::process::exit(1),
+                }
             }
 
             // setpencolor [start of expression] + only 1 value
             constant::IS_SETPENCOLOR | constant::IS_TURN | constant::IS_SETHEADING => {
-                if splitted.len() > 2 && !compute::is_arithmetic_operator(splitted[1])
+                if splitted.len() > 2 && !constant::is_arithmetic_operator(splitted[1])
                     || splitted.len() == 1
                 {
                     std::process::exit(1);
@@ -63,7 +62,7 @@ pub fn turtle_move<'a, 'b: 'a>(
                 };
 
                 // check if it's interger
-                if !helper::is_i32(val) {
+                if !constant::is_i32(val) {
                     std::process::exit(1);
                 }
 
@@ -95,7 +94,7 @@ pub fn turtle_move<'a, 'b: 'a>(
             | constant::IS_BACK
             | constant::IS_RIGHT
             | constant::IS_LEFT => {
-                if (splitted.len() > 2 && !compute::is_arithmetic_operator(&splitted[1]))
+                if (splitted.len() > 2 && !constant::is_arithmetic_operator(&splitted[1]))
                     || splitted.len() == 1
                 {
                     std::process::exit(1);
@@ -134,7 +133,7 @@ pub fn turtle_move<'a, 'b: 'a>(
             },
 
             constant::IS_WHILE | constant::IS_IF => {
-                println!("i = {}", i);
+                // println!("i = {}", i);
 
                 match turtle.search_end(i) {
                     None => match helper::add_controlflow(i, commands, turtle) {
@@ -144,7 +143,7 @@ pub fn turtle_move<'a, 'b: 'a>(
                     Some(_) => {}
                 };
 
-                println!("i = {} turtle_search end = {:?}", i, turtle.search_end(i));
+                // println!("i = {} turtle_search end = {:?}", i, turtle.search_end(i));
 
                 match helper::check_condition(i, &splitted, &turtle) {
                     Some(res) => {
@@ -152,7 +151,6 @@ pub fn turtle_move<'a, 'b: 'a>(
                             i += 1;
                             continue;
                         } else {
-                            println!("i = {}, to false", i);
                             let end_condition = turtle.search_end(i).unwrap();
                             i = end_condition + 1;
                             continue;
@@ -165,10 +163,9 @@ pub fn turtle_move<'a, 'b: 'a>(
 
             constant::IS_CLOSE => {
                 // get the start_line from the index, if it's while : check the condition again
+                // we already make sure that the loop is valid
                 let idx = turtle.get_start_line(i).unwrap();
-                println!("idx of start = {}", idx); // 6
                 let cond_line = &commands[*idx].as_str().trim_start();
-                println!("cond_line = {}", cond_line);
                 if &cond_line[..2] == "IF" {
                     i += 1;
                     continue;
@@ -199,19 +196,46 @@ pub fn turtle_move<'a, 'b: 'a>(
             _ => {
                 match turtle.check_function(&splitted[0]) {
                     Some(f) => {
-                        println!("function = {:?} exists", f);
-                        let mut f_map: HashMap<&str, f32> = HashMap::new();
-                        // map all args in func_map
+                        // create a new turtle and put all args in the var_map!
+                        // the turtle is like a stack pointer here
 
-                        // create a new turtle!!!
-                        // if !function::parse_func_arguments(turtle, &mut f_map, &f, &splitted) {
-                        //     std::process::exit(1);
-                        // }
+                        let mut new_turtle = turtle::Turtle::new(
+                            turtle.get_x(),
+                            turtle.get_y(),
+                            turtle.get_color(),
+                            turtle.get_direction(),
+                        );
 
-                        // match turtle_move(commands, turtle, img, f.start, f.end, &f_map) {
-                        //     Ok(result) => println!("{:?}", result),
-                        //     Err(_) => std::process::exit(1),
-                        // }
+                        match function::parse_func_arguments(
+                            &mut new_turtle,
+                            &f,
+                            &splitted,
+                            &turtle,
+                        ) {
+                            None => std::process::exit(1),
+                            Some(_) => {}
+                        };
+
+                        // let mut input = String::new();
+                        // io::stdin().read_line(&mut input)
+                        //     .expect("Failed to read line");
+
+                        if turtle.get_pen_status() {
+                            new_turtle.set_pendown();
+                        }
+
+                        // println!("call the function: {:?}", f);
+                        match turtle_move(commands, &mut new_turtle, img, 1 + f.start, f.end) {
+                            Ok(result) => {
+                                // println!("{:?}", result);
+
+                                turtle.set_x(result.0);
+                                turtle.set_y(result.1);
+                                turtle.set_color(result.2);
+                                turtle.set_heading(result.3);
+                            }
+                            Err(_) => std::process::exit(1),
+                        }
                     }
 
                     None => std::process::exit(1),
@@ -219,14 +243,13 @@ pub fn turtle_move<'a, 'b: 'a>(
             }
         };
 
-        println!(
-            "x = {}, y = {}, dir = {} degree",
-            turtle.get_x(),
-            turtle.get_y(),
-            turtle.get_direction()
-        );
         i += 1;
     }
 
-    Ok((turtle.get_x(), turtle.get_y()))
+    Ok((
+        turtle.get_x(),
+        turtle.get_y(),
+        turtle.get_color(),
+        turtle.get_direction(),
+    ))
 }

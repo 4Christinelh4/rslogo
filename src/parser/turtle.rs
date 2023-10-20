@@ -46,7 +46,6 @@ impl<'a> Turtle<'a> {
     }
 
     pub fn search_end(&self, start: usize) -> Option<usize> {
-        println!("value = {}", start);
         for (key, value) in &self.cond_map {
             if *value == start {
                 return Some(*key);
@@ -103,6 +102,10 @@ impl<'a> Turtle<'a> {
         self.color_idx
     }
 
+    pub fn get_pen_status(&self) -> bool {
+        self.pen_down
+    }
+
     pub fn check_function(&self, name: &'a str) -> Option<&Func> {
         self.func_map.get(&name)
     }
@@ -144,7 +147,7 @@ impl<'a> Turtle<'a> {
             argv: argv_list,
         };
 
-        println!("new function is inserted{:?}", new_func);
+        // println!("turtle: new function is inserted{:?}", new_func);
         self.func_map.insert(f_name, new_func);
     }
 
@@ -183,7 +186,7 @@ impl<'a> Turtle<'a> {
                 // get from var_map
                 match var_map.get(&in_str[1..]) {
                     Some(val) => {
-                        println!("171: val = {:?}", val);
+                        // println!("{}, {}: val = {:?}", file!(), line!(), val);
                         if val.is_f32 {
                             Some((val.f32_value, String::from(""), true))
                         } else {
@@ -242,5 +245,14 @@ impl<'a> Turtle<'a> {
         }
 
         Some((self.get_x(), self.get_y()))
+    }
+
+    pub fn parse_or_search_map(&self, in_str: &str) -> Option<(f32, String, bool)> {
+        match self.make_query(in_str) {
+            Some(value_f32) => return Some((value_f32, String::from(""), true)),
+            None => {}
+        };
+
+        self.search_varmap(&in_str)
     }
 }
