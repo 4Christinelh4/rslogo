@@ -233,7 +233,7 @@ pub fn evaluate_cond(turtle: &Turtle, cond: &Condition, params: &Vec<&str>) -> O
             if !correct_lhs.3 && !correct_rhs.3 {
                 return Some(correct_lhs.1 == correct_rhs.1);
             }
-            return Some(false);
+            Some(false)
         }
         "GT" => return Some(correct_lhs.3 && correct_rhs.3 && correct_lhs.0 > correct_rhs.0),
         "LT" => return Some(correct_lhs.3 && correct_rhs.3 && correct_lhs.0 < correct_rhs.0),

@@ -41,7 +41,7 @@ pub fn parse_func_arguments<'a, 'b: 'a>(
         // turtle.insert_varmap(&arg_list[arg_idx][1..], );
     }
 
-    return Some(());
+    Some(())
 }
 
 // if ok, return the line where END is

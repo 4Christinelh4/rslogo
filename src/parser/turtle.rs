@@ -161,10 +161,6 @@ impl<'a> Turtle<'a> {
         }
     }
 
-    pub fn get_varmap(&self) -> &HashMap<&str, VarMapValue> {
-        &self.var_map
-    }
-
     // for add assign only, it only allows f32
     pub fn search_assign(&self, key_name: &str) -> Option<f32> {
         match &self.var_map.get(&key_name) {

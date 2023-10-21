@@ -15,11 +15,8 @@ pub fn calculate_bystack(
 
     let mut flag = false;
     let mut prev: f32 = 0.0;
-
-    let var_map: &HashMap<&str, VarMapValue> = turtle.get_varmap();
-
     while k < cmd_line.len() {
-        while k < cmd_line.len() && is_arithmetic_operator(&cmd_line[k]) {
+        while k < cmd_line.len() && is_arithmetic_operator(cmd_line[k]) {
             stack.push_back(k);
             k += 1;
         }
@@ -47,7 +44,7 @@ pub fn calculate_bystack(
                             let (another_v, _, _is_f32) = tup;
                             let another_val: f32 = another_v;
 
-                            match calculate_on_operator(&prev, &cmd_line[op_idx], &another_val) {
+                            match calculate_on_operator(&prev, cmd_line[op_idx], &another_val) {
                                 Some(calculation_res) => {
                                     prev = calculation_res;
                                 }
@@ -68,7 +65,7 @@ pub fn calculate_bystack(
         k += 1;
     }
 
-    Some((prev, k as usize))
+    Some((prev, k))
 }
 
 // WHILE AND GT XCOR "0 GT YCOR "0
