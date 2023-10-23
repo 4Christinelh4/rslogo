@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::collections::VecDeque;
 
 use crate::parser::constant::*;
@@ -58,8 +57,8 @@ pub fn calculate_bystack(
             };
         }
 
-        if stack.len() == 0 {
-            return Some((prev, k + 1 as usize));
+        if stack.is_empty() {
+            return Some((prev, k + 1));
         }
 
         k += 1;

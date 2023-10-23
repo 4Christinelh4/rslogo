@@ -184,7 +184,7 @@ pub fn add_controlflow(idx: usize, commands: &Vec<String>, turtle: &mut Turtle) 
                     None => return None, // empty stack!!!
                 }
 
-                if stack.len() == 0 {
+                if stack.is_empty() {
                     // error
                     Some(());
                 }
@@ -209,7 +209,7 @@ pub fn evaluate_cond(turtle: &Turtle, cond: &Condition, params: &Vec<&str>) -> O
     let lhs = parse_value(&turtle, &params, 1 + cond.cond_start);
     let rhs_start: usize;
     let correct_lhs: (f32, String, usize, bool);
-    let correct_rhs: (f32, String, usize, bool);
+    // let correct_rhs: (f32, String, usize, bool);
 
     if lhs.is_some() {
         correct_lhs = lhs.unwrap();
@@ -218,12 +218,12 @@ pub fn evaluate_cond(turtle: &Turtle, cond: &Condition, params: &Vec<&str>) -> O
         return None;
     }
 
-    let rhs = parse_value(&turtle, &params, rhs_start);
-    if rhs.is_some() {
-        correct_rhs = rhs.unwrap();
+    let rhs = parse_value(turtle, params, rhs_start);
+    let correct_rhs: (f32, String, usize, bool) = if rhs.is_some() {
+        rhs.unwrap()
     } else {
         return None;
-    }
+    };
 
     match params[cond.cond_start] {
         "EQ" => {
@@ -246,7 +246,7 @@ pub fn evaluate_cond(turtle: &Turtle, cond: &Condition, params: &Vec<&str>) -> O
                 return Some(correct_lhs.1 != correct_rhs.1);
             }
 
-            return Some(true); // invalid compare
+            Some(true) // invalid compare (f32 & string), but it's still NOT EQUAL by definition
         }
         _ => return None,
     }
@@ -259,25 +259,23 @@ pub fn check_condition(line_idx: usize, params: &Vec<&str>, turtle: &Turtle) -> 
             let second_cond: &Condition = &conds.1; // need to find the start of secod cond before
 
             let connect: &str = params[1];
-            let cond1_bool: bool;
-            let cond2_bool: bool;
+            // // let cond1_bool: bool;
+            // let cond2_bool: bool;
 
-            match evaluate_cond(&turtle, &first_cond, &params) {
+            let cond1_bool: bool = match evaluate_cond(&turtle, &first_cond, &params) {
                 None => return None,
-                Some(res) => cond1_bool = res,
-            }
+                Some(res) => res,
+            };
 
-            match evaluate_cond(&turtle, &second_cond, &params) {
+            let cond2_bool: bool = match evaluate_cond(&turtle, &second_cond, &params) {
                 None => return None,
-                Some(res) => cond2_bool = res,
-            }
+                Some(res) => res,
+            };
 
             match connect {
-                "AND" => return Some(cond1_bool && cond2_bool),
-                "OR" => return Some(cond1_bool || cond2_bool),
-                "GT" | "LT" | "NE" | "EQ" => {
-                    return Some(cond1_bool);
-                }
+                "AND" => Some(cond1_bool && cond2_bool),
+                "OR" => Some(cond1_bool || cond2_bool),
+                "GT" | "LT" | "NE" | "EQ" => Some(cond1_bool),
                 _ => None,
             }
         }
