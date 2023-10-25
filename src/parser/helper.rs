@@ -4,18 +4,20 @@ use crate::parser::turtle::*;
 
 use std::collections::VecDeque;
 
-// parse_value for setX, setY, FORWARD..., setcolore, set_heading, trun must have f32!!!!
-// bool = true: f32, bool = false: str
+/// parse_value for setX, setY, FORWARD..., setcolore, set_heading, trun must have f32!!!!
+/// bool = true: f32, bool = false: str
+/// the usize (3rd) is the index of the start of the next expression, for example, EQ <expr1> <expr2>
+/// after parsing expr1, usize is the index of start of expr2
 pub fn parse_value(
     turtle: &Turtle,
     params: &[&str],
     start_idx: usize,
 ) -> Option<(f32, String, usize, bool)> {
     if params.len() == 1 {
-        return None; // nothing to parse, the first one is the command
+        return None; // nothing to parse, the first &str is the command itself
     }
 
-    if is_arithmetic_operator(&params[start_idx]) {
+    if is_arithmetic_operator(params[start_idx]) {
         // Option<(f32, usize)>
         match calculate_bystack(turtle, params, start_idx) {
             Some(ret) => Some((ret.0, String::from(""), ret.1, true)),
@@ -37,9 +39,11 @@ pub fn parse_value(
     }
 }
 
-// MAKE :xyz * 2 6
-// MAKE "X XCOR
-// MAKE "Y YCOR
+/// this is the helper for MAKE command of the turtle. As the last expression of MAKE can be a string or a number,
+/// for number, use f32, for string, use String
+/// it inserts to turtle's varmap by calling turtle.insert_varmap, meanwhile, the type (number or string)
+/// is indicated when inserting
+/// MAKE :xyz * 2 6
 pub fn make_cmd<'a, 'b: 'a>(turtle: &'a mut Turtle<'b>, params: &[&'b str]) -> Option<()> {
     if (params.len() > 3 && !is_arithmetic_operator(&params[2])) || params.len() < 3 {
         return None;
@@ -79,6 +83,9 @@ pub fn make_cmd<'a, 'b: 'a>(turtle: &'a mut Turtle<'b>, params: &[&'b str]) -> O
     Some(())
 }
 
+// this is the helper for ADDASSIGN. It checks if the key is in the var_map, return None if not
+// it also check the value to be addassign is a number by checking the boolean of the value taken from
+// the var_map. If it's a string, return None.
 // ADDASSIGN "DIST "5
 pub fn add_assign<'a, 'b: 'a>(turtle: &'a mut Turtle<'b>, params: &[&'b str]) -> Option<()> {
     // make sure it's in turtle's var map and it's f32!!!!
@@ -114,14 +121,16 @@ pub fn add_assign<'a, 'b: 'a>(turtle: &'a mut Turtle<'b>, params: &[&'b str]) ->
     }
 }
 
-// check if it's valid (closed) at the beginning (has ])
+/// Make sure a while/ if, which has multiple lines, is valid at the beginning.
+/// check if it's valid (closed) by looking for the "]". It uses a stack to keep the index of a line that starts
+/// with if or while to handle nested if or while. It pops from the stack once there is a
 pub fn add_controlflow(idx: usize, commands: &Vec<String>, turtle: &mut Turtle) -> Option<()> {
     let mut stack: VecDeque<usize> = VecDeque::new();
     let cmd_len = commands.len();
 
     for k in idx..cmd_len {
         let line_ref = commands[k].as_str().trim_start();
-        if line_ref.len() == 0 || is_comment(line_ref) {
+        if line_ref.is_empty() || is_comment(line_ref) {
             continue;
         }
 
@@ -201,21 +210,21 @@ pub fn add_controlflow(idx: usize, commands: &Vec<String>, turtle: &mut Turtle) 
     Some(())
 }
 
+/// evaluate a single condition's LHS and RHS
+/// when LHS and RHS has different types, NE returns TRUE, GT/LT/EQ returns FALSE
 pub fn evaluate_cond(turtle: &Turtle, cond: &Condition, params: &Vec<&str>) -> Option<bool> {
     if cond.assigned_true {
         return Some(true);
     }
 
     let lhs = parse_value(&turtle, &params, 1 + cond.cond_start);
-    let rhs_start: usize;
-
     let correct_lhs: (f32, String, usize, bool) = if lhs.is_some() {
         lhs.unwrap()
     } else {
         return None;
     };
 
-    rhs_start = correct_lhs.2;
+    let rhs_start: usize = correct_lhs.2;
 
     let rhs = parse_value(&turtle, &params, rhs_start);
     let correct_rhs: (f32, String, usize, bool) = if rhs.is_some() {
@@ -251,6 +260,7 @@ pub fn evaluate_cond(turtle: &Turtle, cond: &Condition, params: &Vec<&str>) -> O
     }
 }
 
+/// it uses the result of evaluate_cond. returns true or false based on AND/ OR rules.
 pub fn check_condition(line_idx: usize, params: &Vec<&str>, turtle: &Turtle) -> Option<bool> {
     match turtle.get_conds(line_idx) {
         Some(conds) => {

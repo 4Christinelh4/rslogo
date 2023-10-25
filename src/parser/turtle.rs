@@ -20,10 +20,10 @@ impl<'a> Turtle<'a> {
     // Constructor method (associated function)
     pub fn new(x: f32, y: f32, color_idx: i32, heading: i32) -> Self {
         Turtle {
-            x: x,
-            y: y,
-            color_idx: color_idx,
-            heading: heading,
+            x,
+            y,
+            color_idx,
+            heading,
             pen_down: false,
             var_map: HashMap::new(),
             func_map: HashMap::new(),
@@ -131,9 +131,9 @@ impl<'a> Turtle<'a> {
         self.var_map.insert(
             k,
             VarMapValue {
-                is_f32: is_f32,
+                is_f32,
                 f32_value: f32_val,
-                str_value: str_value,
+                str_value,
             },
         );
     }

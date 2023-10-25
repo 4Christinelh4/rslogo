@@ -53,7 +53,7 @@ pub fn get_number_float(in_str: &str) -> Result<f32, std::num::ParseFloatError> 
 }
 
 pub fn is_comment(line: &str) -> bool {
-    return line.len() >= 2 && line.chars().nth(0) == Some('/') && line.chars().nth(1) == Some('/');
+    return line.len() >= 2 && line.starts_with('/') && line.chars().nth(1) == Some('/');
 }
 
 pub fn is_i32(input: f32) -> bool {

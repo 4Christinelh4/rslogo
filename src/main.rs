@@ -30,7 +30,7 @@ fn parse_file(filepath: &std::path::PathBuf) -> Vec<String> {
     let mut s = String::new();
     match logo_file.read_to_string(&mut s) {
         Ok(_) => {
-            return s.lines().map(|x| String::from(x)).collect();
+            return s.lines().map(String::from).collect();
         }
         Err(_) => {
             std::process::exit(1);

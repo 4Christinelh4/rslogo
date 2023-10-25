@@ -3,7 +3,8 @@ use std::collections::VecDeque;
 use crate::parser::constant::*;
 use crate::parser::turtle::*;
 
-// (f32: result of current calculation, usize: start of next operator, also the last of current arithmatic + 1)
+/// when meeting an arithmetic expression, such as +, -... use this function to calculate
+/// (f32: result of current calculation, usize: start of next operator, also the last of current arithmatic + 1)
 pub fn calculate_bystack(
     turtle: &Turtle,
     cmd_line: &[&str],
@@ -15,12 +16,13 @@ pub fn calculate_bystack(
     let mut flag = false;
     let mut prev: f32 = 0.0;
     while k < cmd_line.len() {
+        // keep push back to the stack, stop when the last aritimetic operator is pushed back
         while k < cmd_line.len() && is_arithmetic_operator(cmd_line[k]) {
             stack.push_back(k);
             k += 1;
         }
 
-        // if it's number or variable
+        // search the expression in turtle. check if it's number or variable
         if !flag {
             match turtle.parse_or_search_map(&cmd_line[k]) {
                 None => return None,

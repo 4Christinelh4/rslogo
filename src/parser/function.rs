@@ -3,6 +3,9 @@ use crate::parser::helper::*;
 use crate::parser::turtle::*;
 use std::error::Error;
 
+/// parse the argument of the function by doing calculations and insert to turtle's var_map. Here, turtle is
+/// only for such a subroutine. prev_turtle is the caller of the function
+/// turtle here acts like a frame in the program stack
 pub fn parse_func_arguments<'a, 'b: 'a>(
     turtle: &'a mut Turtle<'b>,
     f: &'b Func,
@@ -18,7 +21,7 @@ pub fn parse_func_arguments<'a, 'b: 'a>(
     let mut expr_start: usize = 1;
 
     for arg_idx in 0..f.num_args {
-        match parse_value(&prev_turtle, call_line, expr_start) {
+        match parse_value(prev_turtle, call_line, expr_start) {
             Some(res) => {
                 // println!("result to insert: [{}, {:?}]", &arg_list[arg_idx as usize][1..], res);
                 if res.3 {
@@ -44,7 +47,10 @@ pub fn parse_func_arguments<'a, 'b: 'a>(
     Some(())
 }
 
-// if ok, return the line where END is
+/// defines a procedure when meeting "TO", check if the definition is valid by looking for "END" at the beginning
+//// records the index of start/ end line of the function in logo file,
+/// also writes down the number of parameters for the function.
+/// insert to turtle's func_map by calling turtle.insert_funcmap
 pub fn define_procedure<'a, 'b: 'a>(
     turtle: &'a mut Turtle<'b>,
     commands: &'b Vec<String>,
@@ -55,7 +61,7 @@ pub fn define_procedure<'a, 'b: 'a>(
     let mut last_line: usize = 0;
 
     for k in i..total {
-        if commands[k] == String::from("END") {
+        if commands[k] == *"END" {
             last_line = k;
             break;
         }
@@ -72,7 +78,7 @@ pub fn define_procedure<'a, 'b: 'a>(
     }
 
     turtle.insert_funcmap(
-        &splitted[1],
+        splitted[1],
         i,
         last_line,
         (splitted.len() - 2) as i32,
