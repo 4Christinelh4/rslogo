@@ -74,8 +74,5 @@ pub fn calculate_on_operator(prev_val: &f32, op_name: &str, another_val: &f32) -
 }
 
 pub fn is_arithmetic_operator(argu: &str) -> bool {
-    match argu {
-        "+" | "-" | "*" | "/" => true,
-        _ => false,
-    }
+    matches!(argu, "+" | "-" | "*" | "/")
 }

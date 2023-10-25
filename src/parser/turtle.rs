@@ -112,6 +112,12 @@ impl<'a> Turtle<'a> {
 
     // return false if the "end" is not in Funcmap
     pub fn has_end(&self, line_idx: usize) -> bool {
+        for v in self.func_map.values() {
+            if line_idx == v.end {
+                return true;
+            }
+        }
+
         false
     }
 

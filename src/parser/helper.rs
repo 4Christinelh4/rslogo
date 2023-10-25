@@ -194,7 +194,7 @@ pub fn add_controlflow(idx: usize, commands: &Vec<String>, turtle: &mut Turtle) 
         }
     }
 
-    if stack.len() > 0 {
+    if !stack.is_empty() {
         return None;
     }
 
@@ -208,17 +208,16 @@ pub fn evaluate_cond(turtle: &Turtle, cond: &Condition, params: &Vec<&str>) -> O
 
     let lhs = parse_value(&turtle, &params, 1 + cond.cond_start);
     let rhs_start: usize;
-    let correct_lhs: (f32, String, usize, bool);
-    // let correct_rhs: (f32, String, usize, bool);
 
-    if lhs.is_some() {
-        correct_lhs = lhs.unwrap();
-        rhs_start = correct_lhs.2;
+    let correct_lhs: (f32, String, usize, bool) = if lhs.is_some() {
+        lhs.unwrap()
     } else {
         return None;
-    }
+    };
 
-    let rhs = parse_value(turtle, params, rhs_start);
+    rhs_start = correct_lhs.2;
+
+    let rhs = parse_value(&turtle, &params, rhs_start);
     let correct_rhs: (f32, String, usize, bool) = if rhs.is_some() {
         rhs.unwrap()
     } else {
